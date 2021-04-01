@@ -1,0 +1,19 @@
+{
+  "name": "soap-server-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "easy-soap-request": "^4.1.3",
+    "fast-xml-parser": "^3.19.0",
+    "he": "^1.2.0"
+  }
+}
