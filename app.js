@@ -89,8 +89,17 @@ http.createServer((req, res) => {
                             if (bonus_details){
                                 const result =topUpBonusData(subscriberNumber,bonus_details)
                                 if (result){
-                                    let smsContent=`CONGRATS!, You have just received ${bonus_details.bonus_data_MB}MB Bonus data for purchasing a ${bonus_details.data_purchased}GB bundle. Bonus data is valid for ${bonus_details.bonus_validity}days. Thank you`
-                                    pushSMS(smsContent,phoneContact,res)
+                                    updateTAG(subscriberNumber).then(result =>{
+                                        if (result){
+                                            let smsContent=`CONGRATS!, You have just received ${bonus_details.bonus_data_MB}MB Bonus data for purchasing a ${bonus_details.data_purchased}GB bundle. Bonus data is valid for ${bonus_details.bonus_validity}days. Thank you`
+                                            pushSMS(smsContent,phoneContact,res)
+
+                                        }
+                                    }).catch(error =>{
+                                        console.log(error)
+                                        let smsContent=`CONGRATS!, You have just received ${bonus_details.bonus_data_MB}MB Bonus data for purchasing a ${bonus_details.data_purchased}GB bundle. Bonus data is valid for ${bonus_details.bonus_validity}days. Thank you`
+                                        pushSMS(smsContent,phoneContact,res)
+                                    })
                                 } else return res.end("success")
 
                             } else  return res.end("success")
@@ -227,6 +236,48 @@ async function topUpBonusData(subscriberNumber, bonus_details) {
     }
 
 }
+async function updateTAG(subscriberNumber) {
+
+
+
+    try {
+        const soapUrl = "http://172.25.39.13:3004";
+        const soapHeaders = {
+            'User-Agent': 'NodeApp',
+            'Content-Type': 'text/xml;charset=UTF-8',
+            'SOAPAction': 'urn:CCSCD1_QRY',
+        };
+
+        let xmlBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:pi="http://xmlns.oracle.com/communications/ncc/2009/05/15/pi">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <pi:CCSCD9_CHG>
+         <pi:username>admin</pi:username>
+         <pi:password>admin</pi:password>
+         <pi:MSISDN>${subscriberNumber}</pi:MSISDN>
+         <pi:TAG>NewActivateTag</pi:TAG>
+         <pi:VALUE>disallow</pi:VALUE>
+      </pi:CCSCD9_CHG>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+
+        const {response} = await soapRequest({url: soapUrl, headers: soapHeaders, xml: xmlBody, timeout: 10000}); // Optional timeout parameter(milliseconds)
+        const {body} = response;
+
+        let jsonObj = parser.parse(body, options);
+        const soapResponseBody = jsonObj.Envelope.Body;
+        if (soapResponseBody.CCSCD9_CHGResponse && soapResponseBody.CCSCD9_CHGResponse.AUTH) {
+            return "success"
+        } else return null;
+
+    } catch (error) {
+        console.log(error);
+        return null;
+
+    }
+
+}
+
 function getBonusAmount(bundleId) {
     if (bundleId >= 10 && bundleId <= 19){
         let bonus_data_KB, bonus_data_MB
