@@ -92,13 +92,13 @@ http.createServer((req, res) => {
                                     updateTAG(subscriberNumber).then(result =>{
                                         if (result){
                                             let smsContent=`CONGRATS!, You have just received ${bonus_details.bonus_data_MB}MB Bonus data for purchasing a ${bonus_details.data_purchased}GB bundle. Bonus data is valid for ${bonus_details.bonus_validity}days. Thank you`
-                                            pushSMS(smsContent,phoneContact,res)
+                                          pushSMS(null,phoneContact,res)
 
                                         }
                                     }).catch(error =>{
                                         console.log(error)
                                         let smsContent=`CONGRATS!, You have just received ${bonus_details.bonus_data_MB}MB Bonus data for purchasing a ${bonus_details.data_purchased}GB bundle. Bonus data is valid for ${bonus_details.bonus_validity}days. Thank you`
-                                        pushSMS(smsContent,phoneContact,res)
+                                       pushSMS(null,phoneContact,res)
                                     })
                                 } else return res.end("success")
 
@@ -124,31 +124,37 @@ http.createServer((req, res) => {
 })
 
 function pushSMS(smsContent, to_msisdn, res) {
-    const url = "http://api.hubtel.com/v1/messages/";
-    const headers = {
-        "Content-Type": "application/json",
-        Authorization: "Basic Y3BlcGZ4Z2w6Z3Rnb3B0c3E="
-    };
-    let messagebody = {
-        Content: smsContent,
-        FlashMessage: false,
-        From: "Surfline",
-        To: to_msisdn,
-        Type: 0,
-        RegisteredDelivery: true
-    };
+    if (smsContent){
+        const url = "http://api.hubtel.com/v1/messages/";
+        const headers = {
+            "Content-Type": "application/json",
+            Authorization: "Basic Y3BlcGZ4Z2w6Z3Rnb3B0c3E="
+        };
+        let messagebody = {
+            Content: smsContent,
+            FlashMessage: false,
+            From: "Surfline",
+            To: to_msisdn,
+            Type: 0,
+            RegisteredDelivery: true
+        };
 
-    axios.post(url, messagebody,
-        {headers: headers})
-        .then(function (response) {
-            console.log(response.data);
+        axios.post(url, messagebody,
+            {headers: headers})
+            .then(function (response) {
+                console.log(response.data);
+                res.end("success")
+
+            }).catch(function (error) {
+            console.log(error);
             res.end("success")
 
-        }).catch(function (error) {
-        console.log(error);
-        res.end("success")
+        })
 
-    })
+    }else {
+        res.end("success")
+    }
+
 
 }
 async function getBundlePurchased(subscriberNumber) {
