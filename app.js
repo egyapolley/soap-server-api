@@ -82,7 +82,7 @@ http.createServer((req, res) => {
             let phoneContact=soapBody.phoneContact.toString()
 
             if (opCode === "1"){
-                getBundlePurchased(subscriberNumber)
+               /* getBundlePurchased(subscriberNumber)
                     .then(bundleId =>{
                         if (bundleId){
                             const bonus_details =getBonusAmount(bundleId)
@@ -104,7 +104,8 @@ http.createServer((req, res) => {
 
                             } else  return res.end("success")
                         } else  return  res.end("success")
-                    })
+                    })*/
+                return res.end("success")
             }else {
                  return res.end("success")
             }
