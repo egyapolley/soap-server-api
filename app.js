@@ -47,6 +47,7 @@ const bundleIDMapping = {
     35: "Always ON Streamer",
     36: "Always ON Lite",
     37: "Always ON Maxi",
+    38: "Always ON One Year",
     40: "SME Lite",
     41: "SME Standard",
     42: "SME Starter",
@@ -57,6 +58,7 @@ const bundleIDMapping = {
     60: "Bolt Lite",
     61: "Bolt",
     70: "Weekend(10.5GB)",
+    71: "MoneyHeistPlus(Doughman)",
     101: "BingeXtra",
     102: "Zoom",
     103: "Work Streak",
@@ -82,15 +84,42 @@ http.createServer((req, res) => {
             let soapBody = jsonObject.Envelope.Body.Operation.inputValues;
             let opCode = soapBody.opCode.toString()
             let subscriberNumber = soapBody.callingSubscriber.toString()
+            let phoneContact = soapBody.phoneContact.toString()
             if (opCode === "1") {
                 const reservations = await getINReservations(subscriberNumber)
                 if (reservations) {
                     const data = reservations.toString().split(":")
                     const [scpId, callId] = data
-                    await deleteINReservations(subscriberNumber,scpId,callId)
-                    console.log("Success: ",scpId,callId)
+                    await deleteINReservations(subscriberNumber, scpId, callId)
+                    console.log("Success: ", scpId, callId)
                 }
                 return res.end("success")
+            } else if (opCode === "2") {
+                const bundleId = await getBundlePurchased(subscriberNumber)
+                if (!bundleId) return res.end("success")
+                switch (bundleId) {
+                    case 71:
+                        const code = generateCode()
+                        const partnerContact = '233204629983'
+                        let smsContent = `Dear Customer, thank you for purchasing our Money Heist bundle valid for 6hrs. Call 0204629983 to redeem your doughnut with code ${code}. Offer is valid for 24hrs`
+                        try {
+                            await pushSMS(smsContent, partnerContact)
+                            await pushSMS(smsContent, phoneContact)
+                            return res.end("success")
+
+                        } catch (error) {
+                            console.log(error)
+                            return res.end("success")
+                        }
+
+
+                }
+                res.end("success")
+
+            } else if (opCode === "3") {
+                await changeAcctSTATE(subscriberNumber)
+                return res.end("success")
+
             } else {
                 return res.end("success")
             }
@@ -108,37 +137,22 @@ http.createServer((req, res) => {
     console.log(`App listening on http://${hostname}:${port}`)
 })
 
-function pushSMS(smsContent, to_msisdn, res) {
-    if (smsContent) {
-        const url = "http://api.hubtel.com/v1/messages/";
-        const headers = {
-            "Content-Type": "application/json",
-            Authorization: env.SMS_AUTH
-        };
-        let messagebody = {
-            Content: smsContent,
-            FlashMessage: false,
-            From: "Surfline",
-            To: to_msisdn,
-            Type: 0,
-            RegisteredDelivery: true
-        };
+async function pushSMS(smsContent, to_msisdn) {
+    const url = "http://api.hubtel.com/v1/messages/";
+    const headers = {
+        "Content-Type": "application/json",
+        Authorization: env.SMS_AUTH
+    };
+    let messagebody = {
+        Content: smsContent,
+        FlashMessage: false,
+        From: "Surfline",
+        To: to_msisdn,
+        Type: 0,
+        RegisteredDelivery: true
+    };
 
-        axios.post(url, messagebody,
-            {headers: headers})
-            .then(function (response) {
-                console.log(response.data);
-                res.end("success")
-
-            }).catch(function (error) {
-            console.log(error);
-            res.end("success")
-
-        })
-
-    } else {
-        res.end("success")
-    }
+    await axios.post(url, messagebody, {headers: headers})
 
 
 }
@@ -336,6 +350,65 @@ async function deleteINReservations(subscriberNumber, scpId, callId) {
 
     await soapRequest({url: soapUrl, headers: soapHeaders, xml: xml, timeout: 6000}); // Optional timeout parameter(milliseconds)
 
+
+}
+
+async function changeAcctSTATE(subscriberNumber) {
+
+
+    try {
+        const soapUrl = "http://172.25.39.13:3004";
+        const soapHeaders = {
+            'User-Agent': 'NodeApp',
+            'Content-Type': 'text/xml;charset=UTF-8',
+            'SOAPAction': 'urn:CCSCD1_QRY',
+        };
+
+        let xmlBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:pi="http://xmlns.oracle.com/communications/ncc/2009/05/15/pi">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <pi:CCSCD1_CHG>
+         <pi:username>${env.PI_USER}</pi:username>
+         <pi:password>${env.PI_PASS}</pi:password>
+         <pi:MSISDN>${subscriberNumber}</pi:MSISDN>
+         <pi:STATUS>A</pi:STATUS>
+         <pi:WALLET_EXPIRY_DATE></pi:WALLET_EXPIRY_DATE>
+      </pi:CCSCD1_CHG>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+
+        const {response} = await soapRequest({
+            url: soapUrl,
+            headers: soapHeaders,
+            xml: xmlBody,
+            timeout: 6000
+        });
+
+        const {body} = response;
+
+        let jsonObj = parser.parse(body, options);
+
+        if (jsonObj.Envelope.Body.CCSCD1_CHGResponse && jsonObj.Envelope.Body.CCSCD1_CHGResponse.AUTH) {
+            return "success"
+        } else return null
+
+    } catch (error) {
+        console.log(error);
+        return null;
+
+    }
+
+}
+
+function generateCode() {
+    const STRING = "123456789ABCDEFGHJK";
+    const length = STRING.length;
+    let code = "";
+    for (let i = 0; i < 6; i++) {
+        code += STRING.charAt(Math.floor(Math.random() * length))
+    }
+
+    return code;
 
 }
 
